@@ -1,0 +1,264 @@
+<div class="stream-container">
+  <header>
+    <h1>Streaming Route Demo</h1>
+    <p>Real-time server-sent events from <code>/stream</code></p>
+  </header>
+  
+  <main>
+    <div class="controls">
+      <button id="startBtn" onclick="startStream()">Start Stream</button>
+      <button id="stopBtn" onclick="stopStream()" disabled>Stop Stream</button>
+      <button id="clearBtn" onclick="clearMessages()">Clear Messages</button>
+    </div>
+    
+    <div class="status">
+      <span id="status">Disconnected</span>
+      <span id="messageCount">Messages: 0</span>
+    </div>
+    
+    <div class="messages" id="messages">
+      <p class="info">Click "Start Stream" to begin receiving real-time updates</p>
+    </div>
+  </main>
+</div>
+
+<style>
+  .stream-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 2rem;
+    font-family: system-ui, sans-serif;
+  }
+  
+  header {
+    text-align: center;
+    margin-bottom: 2rem;
+  }
+  
+  h1 {
+    color: #fff;
+    margin-bottom: 0.5rem;
+  }
+  
+  p {
+    color: #ccc;
+    margin: 0;
+  }
+  
+  code {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 0.2rem 0.4rem;
+    border-radius: 0.25rem;
+    color: #fc0;
+  }
+  
+  .controls {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    justify-content: center;
+  }
+  
+  button {
+    padding: 0.75rem 1.5rem;
+    background: #09c;
+    color: white;
+    border: none;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: background 0.2s;
+  }
+  
+  button:hover:not(:disabled) {
+    background: #08a;
+  }
+  
+  button:disabled {
+    background: #555;
+    cursor: not-allowed;
+  }
+  
+  .status {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 0.5rem;
+    margin-bottom: 1rem;
+  }
+  
+  #status {
+    font-weight: bold;
+  }
+  
+  #status.connected {
+    color: #4ade80;
+  }
+  
+  #status.disconnected {
+    color: #f87171;
+  }
+  
+  .messages {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    height: 400px;
+    overflow-y: auto;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  
+  .message {
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 0.25rem;
+    border-left: 3px solid #09c;
+  }
+  
+  .message-time {
+    font-size: 0.8rem;
+    color: #999;
+    margin-bottom: 0.25rem;
+  }
+  
+  .message-content {
+    color: #fff;
+  }
+  
+  .message-data {
+    font-size: 0.9rem;
+    color: #ccc;
+    margin-top: 0.25rem;
+    font-family: monospace;
+  }
+  
+  .info {
+    text-align: center;
+    color: #999;
+    font-style: italic;
+  }
+  
+  .error {
+    color: #f87171;
+    background: rgba(248, 113, 113, 0.1);
+    border-left-color: #f87171;
+  }
+</style>
+
+<script>
+  let eventSource = null;
+  let messageCount = 0;
+  
+  function startStream() {
+    if (eventSource) {
+      eventSource.close();
+    }
+    
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const status = document.getElementById('status');
+    
+    startBtn.disabled = true;
+    stopBtn.disabled = false;
+    status.textContent = 'Connecting...';
+    status.className = '';
+    
+    eventSource = new EventSource('/stream');
+    
+    eventSource.onopen = function() {
+      status.textContent = 'Connected';
+      status.className = 'connected';
+    };
+    
+    eventSource.onmessage = function(event) {
+      try {
+        const data = JSON.parse(event.data);
+        addMessage(data);
+        messageCount++;
+        updateMessageCount();
+      } catch (error) {
+        console.error('Error parsing message:', error);
+      }
+    };
+    
+    eventSource.onerror = function() {
+      status.textContent = 'Connection Error';
+      status.className = 'disconnected';
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+    };
+    
+    eventSource.onclose = function() {
+      status.textContent = 'Disconnected';
+      status.className = 'disconnected';
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+    };
+  }
+  
+  function stopStream() {
+    if (eventSource) {
+      eventSource.close();
+      eventSource = null;
+    }
+    
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const status = document.getElementById('status');
+    
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+    status.textContent = 'Disconnected';
+    status.className = 'disconnected';
+  }
+  
+  function addMessage(data) {
+    const messages = document.getElementById('messages');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'message';
+    
+    if (data.final) {
+      messageDiv.classList.add('error');
+    }
+    
+    const time = new Date(data.timestamp || Date.now()).toLocaleTimeString();
+    
+    messageDiv.innerHTML = `
+      <div class="message-time">${time}</div>
+      <div class="message-content">${data.message}</div>
+      ${data.randomValue !== undefined ? `<div class="message-data">Random Value: ${data.randomValue}</div>` : ''}
+      ${data.id !== undefined ? `<div class="message-data">Message ID: ${data.id}</div>` : ''}
+    `;
+    
+    messages.appendChild(messageDiv);
+    messages.scrollTop = messages.scrollHeight;
+    
+    // Remove info message if it exists
+    const info = messages.querySelector('.info');
+    if (info) {
+      info.remove();
+    }
+  }
+  
+  function clearMessages() {
+    const messages = document.getElementById('messages');
+    messages.innerHTML = '<p class="info">Messages cleared</p>';
+    messageCount = 0;
+    updateMessageCount();
+  }
+  
+  function updateMessageCount() {
+    const messageCountEl = document.getElementById('messageCount');
+    messageCountEl.textContent = `Messages: ${messageCount}`;
+  }
+  
+  // Clean up on page unload
+  window.addEventListener('beforeunload', function() {
+    if (eventSource) {
+      eventSource.close();
+    }
+  });
+</script>

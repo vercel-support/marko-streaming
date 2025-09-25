@@ -3,17 +3,19 @@
   "description": "The default Marko starter app with TypeScript",
   "version": "1.0.0",
   "type": "module",
+  "main": "index.js",
   "dependencies": {
     "marko": "^6.0.0"
   },
   "devDependencies": {
-    "@marko/run": "^0.8.0"
+    "@marko/run": "^0.7.0"
   },
   "private": true,
   "scripts": {
     "dev": "marko-run",
     "build": "marko-run build",
     "preview": "marko-run preview",
-    "start": "node --enable-source-maps ./dist/index.mjs"
+    "start": "node --enable-source-maps ./dist/index.mjs",
+    "vercel-build": "marko-run build && cp dist/index.mjs index.js && mkdir -p public && cp -r dist/public/* public/ 2>/dev/null || true"
   }
 }
